@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, TypedDict
+
+from typing_extensions import Required, NotRequired
 
 from langgraph.graph import StateGraph, END
 
@@ -14,21 +16,27 @@ from content_marketing_agent.agents.image_agent import generate_image_assets
 from content_marketing_agent.memory.vector_store import VectorStoreManager
 from content_marketing_agent.utils.llm_loader import get_chat_model
 from content_marketing_agent.utils.embeddings import get_embeddings
+from langchain_core.language_models.chat_models import BaseChatModel
 
 
-class ContentState(dict):
+class ContentState(TypedDict, total=False):
     """State container for LangGraph."""
 
-    intent: str
-    user_input: str
-    research: Dict[str, Any]
-    blog: Dict[str, Any]
-    linkedin: Dict[str, Any]
-    image: Dict[str, Any]
-    brand: Dict[str, str]
+    # Required at graph entry
+    user_input: Required[str]
+    brand: Required[Dict[str, str]]
+
+    # Produced by nodes
+    intent: NotRequired[str]
+    research: NotRequired[Dict[str, Any]]
+    blog: NotRequired[Dict[str, Any]]
+    linkedin: NotRequired[Dict[str, Any]]
+    image: NotRequired[Dict[str, Any]]
+    history: NotRequired[str]
+    analysis: NotRequired[Dict[str, Any]]
 
 
-def build_graph(llm: Any | None = None, vector_manager: VectorStoreManager | None = None) -> Any:
+def build_graph(llm: BaseChatModel | None = None, vector_manager: VectorStoreManager | None = None) -> Any:
     """
     Construct and return the compiled LangGraph graph.
 

@@ -30,7 +30,12 @@ def classify_intent(llm: BaseChatModel, user_input: str) -> Dict[str, str]:
     ]
     response = llm.invoke(messages)
     try:
-        payload = json.loads(response.content)
+        content = response.content
+        if isinstance(content, list):
+            content = "".join(
+                item if isinstance(item, str) else json.dumps(item) for item in content
+            )
+        payload = json.loads(content)
         intent = payload.get("intent", "").lower()
         if intent not in INTENTS:
             intent = "mixed"

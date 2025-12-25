@@ -42,7 +42,12 @@ def run_research(
     messages = [m for m in messages if m]
     response = llm.invoke(messages)
     try:
-        data = json.loads(response.content)
+        content = response.content
+        if isinstance(content, list):
+            content = "".join(
+                item if isinstance(item, str) else json.dumps(item) for item in content
+            )
+        data = json.loads(content)
     except Exception:
         data = {
             "summary": response.content,

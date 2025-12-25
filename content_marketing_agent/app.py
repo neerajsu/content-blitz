@@ -77,7 +77,7 @@ def render_brand_setup() -> None:
         guidelines = st.text_area("Writing guidelines", value=st.session_state.brand.get("guidelines", ""))
         submitted = st.form_submit_button("Save brand voice")
         if submitted:
-            st.session_state.brand = {"name": name, "tone": tone, "audience": audience, "guidelines": guidelines}
+            st.session_state.brand = {"name": name or "", "tone": tone or "", "audience": audience or "", "guidelines": guidelines or ""}
             store_brand_voice(st.session_state.brand)
             st.success("Brand voice saved to vector store.")
 
