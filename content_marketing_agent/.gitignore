@@ -1,0 +1,27 @@
+# Bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Python tooling
+.mypy_cache/
+.pytest_cache/
+.coverage
+
+# Secrets and env
+.env
+
+# Streamlit cache
+.streamlit/
+
+# Vector data
+vector_data/
