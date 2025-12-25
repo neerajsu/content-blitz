@@ -131,9 +131,10 @@ def render_outputs() -> None:
 
     with image_tab:
         image = st.session_state.last_outputs.get("image", {})
-        st.text_input("Prompt", value=image.get("prompt", ""), key="img_prompt")
-        st.text_input("Caption", value=image.get("caption", ""), key="img_caption")
-        st.text_input("Alt Text", value=image.get("alt_text", ""), key="img_alt")
+        # Render as read-only so latest agent output is always shown (no sticky session state keys)
+        st.text_area("Prompt", value=image.get("prompt", ""), height=100, disabled=True)
+        st.text_area("Caption", value=image.get("caption", ""), height=80, disabled=True)
+        st.text_area("Alt Text", value=image.get("alt_text", ""), height=80, disabled=True)
         if image.get("image_url"):
             st.write("Image URL:", image["image_url"])
         st.caption("Image generation is stubbed. Integrate your provider in `agents/image_agent.py`.")

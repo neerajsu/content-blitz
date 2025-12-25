@@ -49,15 +49,17 @@ def generate_blog(
     ]
     messages = [m for m in messages if m]
     response = llm.invoke(messages)
-    raw_content = response.content
-    if isinstance(raw_content, list):
-        # Coerce list outputs (tool calls / structured parts) into a string for parsing
-        raw_content = "\n".join([c if isinstance(c, str) else json.dumps(c) for c in raw_content])
+    content = response.content
     try:
-        data = json.loads(raw_content)
+        if isinstance(content, list):
+            content = "".join(
+                item if isinstance(item, str) else json.dumps(item) for item in content
+            )    
+        data = json.loads(content)
     except Exception:
+        print("Exception in blog_agent when parsing response from llm")
         data = {
-            "blog_markdown": raw_content if isinstance(raw_content, str) else str(raw_content),
+            "blog_markdown": content if isinstance(content, str) else str(content),
             "meta_title": topic[:60],
             "meta_description": research_summary[:150],
         }

@@ -42,14 +42,17 @@ def generate_image_assets(
     ]
     messages = [m for m in messages if m]
     response = llm.invoke(messages)
-    raw_content = response.content
-    if isinstance(raw_content, list):
-        raw_content = "\n".join([c if isinstance(c, str) else json.dumps(c) for c in raw_content])
+    content = response.content
     try:
-        data = json.loads(raw_content)
+        if isinstance(content, list):
+            content = "".join(
+                item if isinstance(item, str) else json.dumps(item) for item in content
+            )
+        data = json.loads(content)
     except Exception:
+        print("Exception in image_agent when parsing response from llm")
         data = {
-            "prompt": raw_content if isinstance(raw_content, str) else str(raw_content),
+            "prompt": content if isinstance(content, str) else str(content),
             "caption": f"Image for: {request}",
             "alt_text": f"Illustration related to {request}",
         }

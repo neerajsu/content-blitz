@@ -38,14 +38,17 @@ def generate_linkedin(
     ]
     messages = [m for m in messages if m]
     response = llm.invoke(messages)
-    raw_content = response.content
-    if isinstance(raw_content, list):
-        raw_content = "\n".join([c if isinstance(c, str) else json.dumps(c) for c in raw_content])
+    content = response.content
     try:
-        data = json.loads(raw_content)
+        if isinstance(content, list):
+            content = "".join(
+                item if isinstance(item, str) else json.dumps(item) for item in content
+            )
+        data = json.loads(content)
     except Exception:
+        print("Exception in linkedin_agent when parsing response from llm")
         data = {
-            "post": raw_content if isinstance(raw_content, str) else str(raw_content),
+            "post": content if isinstance(content, str) else str(content),
             "carousel": "",
         }
 
