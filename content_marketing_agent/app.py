@@ -112,7 +112,39 @@ def render_outputs() -> None:
     with research_tab:
         research = st.session_state.last_outputs.get("research", {})
         st.write("Query:", research.get("query", ""))
-        st.json(research.get("analysis", {}))
+        analysis = research.get("analysis", {}) or {}
+        summary = analysis.get("summary", "") or "_No summary available._"
+        keywords = analysis.get("keywords", []) or []
+        insights = analysis.get("insights", []) or []
+        references = analysis.get("references", []) or []
+
+        st.markdown("**Summary**")
+        st.markdown(f"> {summary}")
+
+        col_kw, col_insights = st.columns(2)
+        with col_kw:
+            st.markdown("**Keywords**")
+            if keywords:
+                st.markdown("\n".join([f"- {kw}" for kw in keywords]))
+            else:
+                st.caption("No keywords.")
+        with col_insights:
+            st.markdown("**Insights**")
+            if insights:
+                st.markdown("\n".join([f"- {ins}" for ins in insights]))
+            else:
+                st.caption("No insights.")
+
+        st.markdown("**References**")
+        if references:
+            for idx, ref in enumerate(references, start=1):
+                title = ref.get("title") or ref.get("url") or "Reference"
+                url = ref.get("url") or ""
+                snippet = ref.get("snippet") or ""
+                link = f"[{title}]({url})" if url else title
+                st.markdown(f"{idx}. {link}\n    - {snippet}")
+        else:
+            st.caption("No references.")
 
     with blog_tab:
         blog = st.session_state.last_outputs.get("blog", {})

@@ -14,12 +14,17 @@ from content_marketing_agent.memory.vector_store import VectorStoreManager
 
 
 def _call_perplexity(query: str, history: str = "", k: int = 5) -> Dict[str, Any]:
-    """Call Perplexity Sonar for grounded research with references."""
+    """Call Perplexity Sonar for grounded research with strict JSON output."""
+    
     api_key = os.getenv("PERPLEXITY_API_KEY")
     if not api_key:
-        return {}
+        return {
+            "summary": "",
+            "keywords": [],
+            "insights": [],
+            "references": [],
+        }
 
-    system_prompt = PERPLEXITY_SYSTEM_PROMPT
     user_prompt = f"Research query: {query}"
     if history:
         user_prompt += f"\n\nConversation context:\n{history}"
@@ -27,31 +32,37 @@ def _call_perplexity(query: str, history: str = "", k: int = 5) -> Dict[str, Any
     payload = {
         "model": "sonar",
         "messages": [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": PERPLEXITY_SYSTEM_PROMPT.strip()},
             {"role": "user", "content": user_prompt},
         ],
-        "temperature": 0.3,
+        "temperature": 0.2,   # lower = more deterministic JSON
         "top_p": 0.9,
     }
+
     resp = requests.post(
         "https://api.perplexity.ai/chat/completions",
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
         json=payload,
         timeout=60,
     )
-    resp.raise_for_status()
-    content = resp.json()["choices"][0]["message"]["content"]
-    print(content);
 
-    if isinstance(content, str):
-        fenced = re.match(r"```(?:json)?\s*(.*)```", content, flags=re.DOTALL)
-        if fenced:
-            content = fenced.group(1).strip()
-        try:
-            return json.loads(content)
-        except Exception:
-            return {"summary": content, "keywords": [], "insights": [], "references": []}
-    return {"summary": str(content), "keywords": [], "insights": [], "references": []}
+    resp.raise_for_status()
+
+    content = resp.json()["choices"][0]["message"]["content"]
+
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        # Hard fallback (should be rare if prompt is respected)
+        return {
+            "summary": content,
+            "keywords": [],
+            "insights": [],
+            "references": [],
+        }
 
 
 def run_research(
