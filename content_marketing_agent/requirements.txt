@@ -11,11 +11,5 @@ langchain-google-genai>=0.3.0
 langgraph>=0.1.0
 langchain-core>=0.3.0
 
-# Vector DB
-faiss-cpu>=1.8.0
-
-# Optional: HuggingFace embeddings (pulls in torch). Leave USE_HF_EMBEDDINGS=0 to skip.
-# sentence-transformers>=2.7.0
-
 # HTTP client for Perplexity
 requests>=2.31.0

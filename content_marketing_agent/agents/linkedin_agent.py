@@ -9,13 +9,11 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from content_marketing_agent.prompts.linkedin_prompt import LINKEDIN_PROMPT
-from content_marketing_agent.memory.vector_store import VectorStoreManager
 
 
 def generate_linkedin(
     llm: BaseChatModel,
     source: str,
-    vector_manager: VectorStoreManager,
     topic: str,
     history: str = "",
 ) -> Dict[str, Any]:
@@ -25,7 +23,6 @@ def generate_linkedin(
     Args:
         llm: Chat model.
         source: Blog markdown or research summary.
-        vector_manager: Vector store for logging past outputs.
         topic: Topic for metadata.
 
     Returns:
@@ -51,10 +48,4 @@ def generate_linkedin(
             "post": content if isinstance(content, str) else str(content),
             "carousel": "",
         }
-
-    vector_manager.add_document(
-        "past_outputs",
-        content=data.get("post", ""),
-        metadata={"type": "linkedin", "topic": topic},
-    )
     return data

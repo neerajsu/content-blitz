@@ -9,13 +9,11 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from content_marketing_agent.prompts.image_prompt import IMAGE_PROMPT
-from content_marketing_agent.memory.vector_store import VectorStoreManager
 
 
 def generate_image_assets(
     llm: BaseChatModel,
     request: str,
-    vector_manager: VectorStoreManager,
     brand_name: str,
     history: str = "",
 ) -> Dict[str, Any]:
@@ -25,15 +23,12 @@ def generate_image_assets(
     Args:
         llm: Chat model.
         request: Image requirement description.
-        vector_manager: Vector store for RAG brand voice.
         brand_name: Brand identifier.
 
     Returns:
         Structured image output with a stubbed image_url.
     """
-    # RAG for brand tone
-    docs = vector_manager.search("brand_voice", brand_name, k=2)
-    brand_voice = "\n".join([doc.page_content for doc, _ in docs]) if docs else "Professional, clear, engaging."
+    brand_voice = f"Professional, clear, engaging tone for {brand_name}."
 
     messages = [
         SystemMessage(content="Conversation context:\n" + history) if history else None,
@@ -59,10 +54,4 @@ def generate_image_assets(
 
     # Stub image generation; replace with actual API call if configured
     data["image_url"] = data.get("image_url") or "TODO: integrate image generation API"
-
-    vector_manager.add_document(
-        "past_outputs",
-        content=data.get("caption", ""),
-        metadata={"type": "image", "topic": request},
-    )
     return data
