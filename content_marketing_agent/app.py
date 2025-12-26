@@ -20,6 +20,7 @@ from content_marketing_agent.memory.conversation_memory import ConversationManag
 from content_marketing_agent.memory.vector_store import VectorStoreManager
 from content_marketing_agent.utils.embeddings import get_embeddings
 from content_marketing_agent.utils.llm_loader import get_chat_model
+from content_marketing_agent.home import render_home
 
 
 load_dotenv()
@@ -38,6 +39,22 @@ def init_state() -> None:
         st.session_state.graph = build_graph(llm=get_chat_model(), vector_manager=st.session_state.vector_manager)
     if "last_outputs" not in st.session_state:
         st.session_state.last_outputs = {"research": {}, "blog": {}, "linkedin": {}, "image": {}, "intent": "", "analysis": {}}
+    if "page" not in st.session_state:
+        st.session_state.page = "Home"
+    if "home_chat_selected" not in st.session_state:
+        st.session_state.home_chat_selected = None
+    if "home_chat_edit_id" not in st.session_state:
+        st.session_state.home_chat_edit_id = None
+    if "home_chats" not in st.session_state:
+        st.session_state.home_chats = [
+            {"id": "c1", "title": "AI trends in 2024", "summary": "Latest AI trends for SaaS companies"},
+            {"id": "c2", "title": "Marketing strategies for SaaS", "summary": "Go-to-market and growth ideas"},
+            {"id": "c3", "title": "Remote work productivity", "summary": "Tools and rituals for async teams"},
+            {"id": "c4", "title": "Blockchain basics", "summary": "Explainer for non-technical leaders"},
+            {"id": "c5", "title": "Sustainable business practices", "summary": "Greener ops for startups"},
+        ]
+    if "home_chat_counter" not in st.session_state:
+        st.session_state.home_chat_counter = len(st.session_state.home_chats) + 1
 
 
 def store_brand_voice(brand: Dict[str, str]) -> None:
@@ -181,14 +198,19 @@ def render_history() -> None:
 def main() -> None:
     """Main Streamlit entry."""
     init_state()
-    st.title("Agentic Content Marketing Assistant")
-    st.markdown("Multi-agent system with LangGraph, RAG (brand voice only), and Streamlit UI.")
+    st.sidebar.title("Navigation")
+    st.session_state.page = st.sidebar.radio("Go to", ["Home", "Agent Work"], index=0 if st.session_state.page == "Home" else 1)
 
-    render_brand_setup()
-    render_chat()
-    render_outputs()
-    with st.expander("Session Memory"):
-        render_history()
+    if st.session_state.page == "Home":
+        render_home()
+    else:
+        st.title("Agentic Content Marketing Assistant")
+        st.markdown("Multi-agent system with LangGraph, RAG (brand voice only), and Streamlit UI.")
+        render_brand_setup()
+        render_chat()
+        render_outputs()
+        with st.expander("Session Memory"):
+            render_history()
 
 
 if __name__ == "__main__":
