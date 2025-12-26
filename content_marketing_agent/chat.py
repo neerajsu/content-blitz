@@ -40,8 +40,6 @@ def _format_research_markdown(analysis: dict[str, Any]) -> str:
     references = analysis.get("references") or []
 
     lines = [
-        "## Research Output",
-        "",
         "### Summary",
         summary,
         "",
@@ -175,17 +173,37 @@ def render_chat_detail(selected_chat: dict) -> None:
                     st.warning("Please enter a prompt before submitting.")
                 else:
                     previous_output = st.session_state.research_outputs.get(chat_id, DEFAULT_RESEARCH_MESSAGE)
-                    current_output = "" if previous_output == DEFAULT_RESEARCH_MESSAGE else previous_output
+                    has_real_research = bool(previous_output and previous_output != DEFAULT_RESEARCH_MESSAGE)
+                    current_output = "" if not has_real_research else previous_output
+                    research_output_for_guard = previous_output if has_real_research else ""
                     chat_history.append(("user", trimmed))
                     st.session_state.chat_histories[chat_id] = chat_history
                     MAX_TURNS = 4  # 2 user + 2 assistant
                     recent_history = chat_history[-MAX_TURNS:]
                     history_text = "\n".join(f"{role}: {message}" for role, message in recent_history)
+
                     with st.spinner("Research agent is updating your output..."):
                         graph = _get_research_graph()
                         state = graph.invoke(
-                            {"prompt": trimmed, "history": history_text, "current_output": current_output}
+                            {
+                                "prompt": trimmed,
+                                "history": history_text,
+                                "current_output": current_output,
+                                "research_output": research_output_for_guard,
+                            }
                         )
+                    allowed = state.get("allowed", True) if isinstance(state, dict) else True
+                    if not allowed:
+                        chat_history.append(
+                            (
+                                "assistant",
+                                "Your question is regarding a different domain to what you are currently researching. Please use a different chat.",
+                            )
+                        )
+                        st.session_state.chat_histories[chat_id] = chat_history
+                        st.session_state[reset_flag] = True
+                        st.rerun()
+
                     result = state.get("result", {}) if isinstance(state, dict) else {}
                     analysis = result.get("analysis", {})
                     research_markdown = _format_research_markdown(analysis)

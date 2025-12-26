@@ -12,11 +12,14 @@ from content_marketing_agent.prompts.perplexity_prompt import PERPLEXITY_SYSTEM_
 
 
 class ResearchState(TypedDict, total=False):
-    """State carried through the research graph."""
+    """State carried through the research graph (includes guard info)."""
 
     prompt: str
     history: str
     current_output: str
+    research_output: str
+    allowed: bool
+    reason: str
     result: Dict[str, Any]
 
 
