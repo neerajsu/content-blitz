@@ -60,7 +60,7 @@ def build_graph(llm: BaseChatModel | None = None, vector_manager: VectorStoreMan
 
     def research_node(state: ContentState) -> ContentState:
         history = state.get("history", "")
-        research_out = run_research(llm, state["user_input"], vm, history=history)
+        research_out = run_research(state["user_input"], vm, history=history)
         state["research"] = research_out
         return state
 

@@ -113,7 +113,6 @@ def render_outputs() -> None:
         research = st.session_state.last_outputs.get("research", {})
         st.write("Query:", research.get("query", ""))
         st.json(research.get("analysis", {}))
-        st.json({"results": research.get("results", [])})
 
     with blog_tab:
         blog = st.session_state.last_outputs.get("blog", {})
