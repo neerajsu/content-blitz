@@ -122,24 +122,24 @@ def render_project() -> None:
             with tab_linkedin:
                 st.text_area(
                     "Post (Markdown)",
-                    value="# LinkedIn Post\n\nThis is a **markdown editor** for your LinkedIn post.\n\n## Key Points\n- Point one\n- Point two\n- Point three\n\n*Edit this content for your post!*",
+                    value="",
                     key=f"linkedin_post_{project_id}",
                     height=220,
+                    placeholder="No content yet.",
                 )
                 st.text_area(
                     "Carousel (JSON)",
-                    value='{\n  "slides": [\n    {\n      "title": "Slide 1",\n      "content": "First slide content"\n    },\n    {\n      "title": "Slide 2",\n      "content": "Second slide content"\n    }\n  ]\n}',
+                    value="",
                     key=f"linkedin_carousel_{project_id}",
                     height=200,
+                    placeholder='No content yet.',
                 )
 
             with tab_blog:
-                st.text_area(
-                    "Blog Content (Markdown)",
-                    value="# Blog Title\n\nWrite your **blog content** here using markdown.\n\n## Introduction\n\nThis is the introduction to your blog post.\n\n## Main Content\n\n### Section 1\nYour content here...\n\n### Section 2\nMore content here...\n\n## Conclusion\n\nWrap up your blog post.",
-                    key=f"blog_markdown_{project_id}",
-                    height=420,
-                )
+                blog_content_key = f"blog_markdown_{project_id}"
+                blog_content = st.session_state.get(blog_content_key, "")
+                st.markdown("**Blog Content (Markdown)**")
+                st.markdown(blog_content or "_No blog content yet._")
 
             st.text_area(
                 "Enter your prompt",
