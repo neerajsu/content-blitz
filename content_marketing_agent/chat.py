@@ -1,4 +1,4 @@
-"""Chat detail view for Home page."""
+"""Chat detail view for a project's research flow."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from typing import Any
 import streamlit as st
 
 from content_marketing_agent.graph.content_graph import build_research_graph, build_title_graph
+from content_marketing_agent.state import get_project, set_active_chat, update_chat_summary, update_chat_title
 
 DEFAULT_RESEARCH_MESSAGE = "Research something with the chatbot to populate this section."
 
@@ -26,10 +27,12 @@ def _get_title_graph():
 def _ensure_chat_state(chat_id: str) -> tuple[list[tuple[str, str]], str]:
     histories = st.session_state.setdefault("chat_histories", {})
     outputs = st.session_state.setdefault("research_outputs", {})
+    structured = st.session_state.setdefault("research_structured", {})
     if chat_id not in histories:
         histories[chat_id] = []
     if chat_id not in outputs:
         outputs[chat_id] = DEFAULT_RESEARCH_MESSAGE
+    structured.setdefault(chat_id, {})
     return histories[chat_id], outputs[chat_id]
 
 
@@ -73,17 +76,8 @@ def _format_research_markdown(analysis: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _update_chat_summary(chat_id: str, summary: str) -> None:
-    trimmed = (summary or "").strip()
-    if not trimmed:
-        return
-    snippet = trimmed.splitlines()[0][:120]
-    updated = []
-    for chat in st.session_state.home_chats:
-        if chat["id"] == chat_id:
-            chat["summary"] = snippet
-        updated.append(chat)
-    st.session_state.home_chats = updated
+def _update_chat_summary(project_id: str, chat_id: str, summary: str) -> None:
+    update_chat_summary(project_id, chat_id, summary)
 
 
 def _generate_title_from_summary(summary: str) -> str:
@@ -106,38 +100,36 @@ def _generate_title_from_summary(summary: str) -> str:
     return fallback or "Untitled chat"
 
 
-def _maybe_set_title(chat_id: str, summary: str) -> None:
+def _maybe_set_title(project_id: str, chat_id: str, summary: str) -> None:
     """Set an auto-generated title once, if not already set or edited by the user."""
-    chats = st.session_state.home_chats
-    updated: list[dict[str, Any]] = []
-    for chat in chats:
-        if chat["id"] == chat_id:
-            already_set = chat.get("title_generated")
-            existing_title = (chat.get("title") or "").strip()
-            if not already_set and not existing_title:
-                generated = _generate_title_from_summary(summary)
-                if generated:
-                    chat["title"] = generated
-                    chat["title_generated"] = True
-            else:
-                chat["title"] = existing_title
-            updated.append(chat)
-        else:
-            updated.append(chat)
-    st.session_state.home_chats = updated
+    project = get_project(project_id)
+    if not project:
+        return
+    chat = next((c for c in project["chats"] if c.get("id") == chat_id), None)
+    if not chat:
+        return
+    already_set = chat.get("title_generated")
+    existing_title = (chat.get("title") or "").strip()
+    if not already_set and not existing_title:
+        generated = _generate_title_from_summary(summary)
+        if generated:
+            update_chat_title(project_id, chat_id, generated, generated=True)
+    else:
+        fallback_title = existing_title or "Untitled chat"
+        update_chat_title(project_id, chat_id, fallback_title, generated=bool(already_set))
 
 
-def render_chat_detail(selected_chat: dict) -> None:
+def render_chat_detail(selected_chat: dict, project_id: str) -> None:
     """Render the two-column chat + research output view for a selected chat."""
     chat_id = selected_chat.get("id", "unknown")
     chat_history, research_markdown = _ensure_chat_state(chat_id)
-    input_key = f"home_chat_input_{chat_id}"
+    input_key = f"project_chat_input_{chat_id}"
     reset_flag = f"{input_key}_reset"
 
     back_col, _ = st.columns([0.2, 0.8])
     with back_col:
         if st.button("< Back to chats", key="back_to_chats"):
-            st.session_state.home_chat_selected = None
+            set_active_chat(None)
             st.rerun()
 
     if st.session_state.get(reset_flag):
@@ -211,8 +203,8 @@ def render_chat_detail(selected_chat: dict) -> None:
                     st.session_state.research_structured[chat_id] = analysis
                     chat_history.append(("assistant", "Research output updated. Let me know if you want to tweak anything else."))
                     st.session_state.chat_histories[chat_id] = chat_history
-                    _maybe_set_title(chat_id, analysis.get("summary", ""))
-                    _update_chat_summary(chat_id, analysis.get("summary", ""))
+                    _maybe_set_title(project_id, chat_id, analysis.get("summary", ""))
+                    _update_chat_summary(project_id, chat_id, analysis.get("summary", ""))
                     st.session_state[reset_flag] = True
                     st.rerun()
 
