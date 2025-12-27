@@ -15,6 +15,7 @@ if str(ROOT) not in sys.path:
 
 from content_marketing_agent.home import render_home
 from content_marketing_agent.project import render_project
+from content_marketing_agent.services.bootstrap import bootstrap_storage
 from content_marketing_agent.state import init_state
 
 
@@ -24,6 +25,7 @@ st.set_page_config(page_title="Agentic Content Marketing Assistant", layout="wid
 
 def main() -> None:
     """Main Streamlit entry."""
+    bootstrap_storage()
     init_state()
     if st.session_state.current_screen == "project":
         render_project()

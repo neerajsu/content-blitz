@@ -4,6 +4,7 @@ Capstone-grade content marketing assistant built with LangChain, Streamlit, and 
 
 ## Architecture
 - **UI**: Streamlit Home page with research/content/image areas.
+- **Data**: MongoDB collections for projects, chats, messages, and research outputs (see `docker-compose.yml` for local dev).
 - **Agents** (`agents/`):
   - `router_agent`: intent classification (`research`, `blog`, `linkedin`, `image`, `mixed`).
   - `research_agent`: SERP search + summarization + SEO keywords.
@@ -12,7 +13,7 @@ Capstone-grade content marketing assistant built with LangChain, Streamlit, and 
   - `image_agent`: brand-aware prompt, caption, alt text (image generation stub).
 - **Memory Layers**:
   - Conversation buffer (`memory/conversation_memory.py`) for multi-turn chat context.
-  - Streamlit `session_state` for UI/session data.
+  - MongoDB persistence for project/chat/message/research data (UI only keeps navigation state).
 - **Utilities** (`utils/`): LLM loader with provider fallback, SERP client with stubbed results when key missing.
 
 ## Setup
@@ -24,8 +25,12 @@ Capstone-grade content marketing assistant built with LangChain, Streamlit, and 
    pip install -r requirements.txt
    ```
 2. **Configure env**  
-   Copy `.env.example` + `.env` and set your keys (`OPENAI_API_KEY`, optional `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `SERPAPI_API_KEY`). Defaults to OpenAI; falls back to stubs if missing.
-3. **Run Streamlit**  
+   Copy `.env.example` + `.env` and set your keys (`OPENAI_API_KEY`, optional `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `SERPAPI_API_KEY`). Defaults to OpenAI; falls back to stubs if missing. Update `MONGO_URI`/`MONGO_DB_NAME` if you run Mongo somewhere else.
+3. **Start MongoDB (local dev)**  
+   ```bash
+   docker-compose up -d mongo
+   ```
+4. **Run Streamlit**  
    ```bash
    streamlit run content_marketing_agent/app.py
    ```

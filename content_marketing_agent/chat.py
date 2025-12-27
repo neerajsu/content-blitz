@@ -7,7 +7,8 @@ from typing import Any
 import streamlit as st
 
 from content_marketing_agent.graph.content_graph import build_research_graph, build_title_graph
-from content_marketing_agent.state import get_project, set_active_chat, update_chat_summary, update_chat_title
+from content_marketing_agent.services import chat_service
+from content_marketing_agent.state import set_active_chat
 
 DEFAULT_RESEARCH_MESSAGE = "Research something with the chatbot to populate this section."
 
@@ -22,18 +23,6 @@ def _get_research_graph():
 def _get_title_graph():
     """Cache the compiled title generation graph."""
     return build_title_graph()
-
-
-def _ensure_chat_state(chat_id: str) -> tuple[list[tuple[str, str]], str]:
-    histories = st.session_state.setdefault("chat_histories", {})
-    outputs = st.session_state.setdefault("research_outputs", {})
-    structured = st.session_state.setdefault("research_structured", {})
-    if chat_id not in histories:
-        histories[chat_id] = []
-    if chat_id not in outputs:
-        outputs[chat_id] = DEFAULT_RESEARCH_MESSAGE
-    structured.setdefault(chat_id, {})
-    return histories[chat_id], outputs[chat_id]
 
 
 def _format_research_markdown(analysis: dict[str, Any]) -> str:
@@ -76,10 +65,6 @@ def _format_research_markdown(analysis: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _update_chat_summary(project_id: str, chat_id: str, summary: str) -> None:
-    update_chat_summary(project_id, chat_id, summary)
-
-
 def _generate_title_from_summary(summary: str) -> str:
     """Create a concise title from the research summary using the title graph."""
     text = (summary or "").strip()
@@ -100,12 +85,9 @@ def _generate_title_from_summary(summary: str) -> str:
     return fallback or "Untitled chat"
 
 
-def _maybe_set_title(project_id: str, chat_id: str, summary: str) -> None:
+def _maybe_set_title(chat_id: str, summary: str) -> None:
     """Set an auto-generated title once, if not already set or edited by the user."""
-    project = get_project(project_id)
-    if not project:
-        return
-    chat = next((c for c in project["chats"] if c.get("id") == chat_id), None)
+    chat = chat_service.get_chat(chat_id)
     if not chat:
         return
     already_set = chat.get("title_generated")
@@ -113,16 +95,18 @@ def _maybe_set_title(project_id: str, chat_id: str, summary: str) -> None:
     if not already_set and not existing_title:
         generated = _generate_title_from_summary(summary)
         if generated:
-            update_chat_title(project_id, chat_id, generated, generated=True)
+            chat_service.update_chat_title(chat_id, generated, generated=True)
     else:
         fallback_title = existing_title or "Untitled chat"
-        update_chat_title(project_id, chat_id, fallback_title, generated=bool(already_set))
+        chat_service.update_chat_title(chat_id, fallback_title, generated=bool(already_set))
 
 
 def render_chat_detail(selected_chat: dict, project_id: str) -> None:
     """Render the two-column chat + research output view for a selected chat."""
     chat_id = selected_chat.get("id", "unknown")
-    chat_history, research_markdown = _ensure_chat_state(chat_id)
+    research_doc = chat_service.get_chat_research_output(chat_id, DEFAULT_RESEARCH_MESSAGE)
+    research_markdown = research_doc.get("markdown", DEFAULT_RESEARCH_MESSAGE) or DEFAULT_RESEARCH_MESSAGE
+    messages = chat_service.get_chat_messages(chat_id)
     input_key = f"project_chat_input_{chat_id}"
     reset_flag = f"{input_key}_reset"
 
@@ -144,11 +128,13 @@ def render_chat_detail(selected_chat: dict, project_id: str) -> None:
         st.subheader("Chat")
         chat_container = st.container(height=400, border=True)
         with chat_container:
-            for role, msg in chat_history:
-                if role.lower() in {"you", "user"}:
-                    chat_container.chat_message("user").write(msg)
+            for message in messages:
+                role = message.get("role", "").lower()
+                content = message.get("content", "")
+                if role in {"you", "user"}:
+                    chat_container.chat_message("user").write(content)
                 else:
-                    chat_container.chat_message("assistant").write(msg)
+                    chat_container.chat_message("assistant").write(content)
 
         with st.form(key=f"chat_form_{chat_id}", clear_on_submit=False):
             user_input = st.text_area(
@@ -164,15 +150,16 @@ def render_chat_detail(selected_chat: dict, project_id: str) -> None:
                 if not trimmed:
                     st.warning("Please enter a prompt before submitting.")
                 else:
-                    previous_output = st.session_state.research_outputs.get(chat_id, DEFAULT_RESEARCH_MESSAGE)
+                    chat_service.add_message(project_id, chat_id, "user", trimmed)
+                    history_with_new = messages + [{"role": "user", "content": trimmed}]
+                    MAX_TURNS = 4  # 2 user + 2 assistant
+                    recent_history = history_with_new[-MAX_TURNS:]
+                    history_text = "\n".join(f"{msg['role']}: {msg['content']}" for msg in recent_history)
+
+                    previous_output = research_markdown
                     has_real_research = bool(previous_output and previous_output != DEFAULT_RESEARCH_MESSAGE)
                     current_output = "" if not has_real_research else previous_output
                     research_output_for_guard = previous_output if has_real_research else ""
-                    chat_history.append(("user", trimmed))
-                    st.session_state.chat_histories[chat_id] = chat_history
-                    MAX_TURNS = 4  # 2 user + 2 assistant
-                    recent_history = chat_history[-MAX_TURNS:]
-                    history_text = "\n".join(f"{role}: {message}" for role, message in recent_history)
 
                     with st.spinner("Research agent is updating your output..."):
                         graph = _get_research_graph()
@@ -186,25 +173,26 @@ def render_chat_detail(selected_chat: dict, project_id: str) -> None:
                         )
                     allowed = state.get("allowed", True) if isinstance(state, dict) else True
                     if not allowed:
-                        chat_history.append(
-                            (
-                                "assistant",
-                                "Your question is regarding a different domain to what you are currently researching. Please use a different chat.",
-                            )
+                        chat_service.add_message(
+                            project_id,
+                            chat_id,
+                            "assistant",
+                            "Your question is regarding a different domain to what you are currently researching. Please use a different chat.",
                         )
-                        st.session_state.chat_histories[chat_id] = chat_history
                         st.session_state[reset_flag] = True
                         st.rerun()
 
                     result = state.get("result", {}) if isinstance(state, dict) else {}
                     analysis = result.get("analysis", {})
                     research_markdown = _format_research_markdown(analysis)
-                    st.session_state.research_outputs[chat_id] = research_markdown
-                    st.session_state.research_structured[chat_id] = analysis
-                    chat_history.append(("assistant", "Research output updated. Let me know if you want to tweak anything else."))
-                    st.session_state.chat_histories[chat_id] = chat_history
-                    _maybe_set_title(project_id, chat_id, analysis.get("summary", ""))
-                    _update_chat_summary(project_id, chat_id, analysis.get("summary", ""))
+                    chat_service.save_research_output(
+                        project_id, chat_id, research_markdown, analysis, analysis.get("summary", "")
+                    )
+                    chat_service.add_message(
+                        project_id, chat_id, "assistant", "Research output updated. Let me know if you want to tweak anything else."
+                    )
+                    _maybe_set_title(chat_id, analysis.get("summary", ""))
+                    chat_service.update_chat_summary(chat_id, analysis.get("summary", ""))
                     st.session_state[reset_flag] = True
                     st.rerun()
 
@@ -214,8 +202,7 @@ def render_chat_detail(selected_chat: dict, project_id: str) -> None:
             st.subheader("Research Output")
         with reset_col:
             if st.button("Start fresh", key=f"reset_research_{chat_id}"):
-                st.session_state.research_outputs[chat_id] = DEFAULT_RESEARCH_MESSAGE
-                st.session_state.research_structured.pop(chat_id, None)
+                chat_service.save_research_output(project_id, chat_id, DEFAULT_RESEARCH_MESSAGE, {}, DEFAULT_RESEARCH_MESSAGE)
                 research_markdown = DEFAULT_RESEARCH_MESSAGE
 
         output_box = st.container(height=480, border=True)

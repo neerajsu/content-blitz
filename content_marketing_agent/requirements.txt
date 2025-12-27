@@ -1,6 +1,7 @@
 streamlit>=1.36.0
 python-dotenv>=1.0.0
 markdown>=3.5.0
+pymongo>=4.8.0
 
 # LangChain stack
 langchain>=0.3.0
