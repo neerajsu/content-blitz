@@ -36,3 +36,16 @@ def get_research_output(chat_id: str) -> Optional[dict[str, Any]]:
 
 def delete_research_output(chat_id: str) -> None:
     _research_outputs().delete_one({"chat_id": chat_id})
+
+
+def list_research_outputs(project_id: str) -> list[dict[str, Any]]:
+    """
+    Return all research outputs for a project.
+
+    Only pulls the fields needed for downstream content generation.
+    """
+    cursor = _research_outputs().find(
+        {"project_id": project_id},
+        {"chat_id": 1, "project_id": 1, "summary": 1, "structured": 1},
+    )
+    return [dict(doc) for doc in cursor]

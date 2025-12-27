@@ -10,7 +10,19 @@ services:
       MONGO_INITDB_DATABASE: content_blitz
     volumes:
       - mongo-data:/data/db
+  pinecone:
+    image: ghcr.io/pinecone-io/pinecone-local:latest
+    restart: unless-stopped
+    ports:
+      - "5050:5050"
+      - "5051:5051"
+    environment:
+      PINECONE_PORT: 5050
+    volumes:
+      - pinecone-data:/data
 
 volumes:
   mongo-data:
+    driver: local
+  pinecone-data:
     driver: local

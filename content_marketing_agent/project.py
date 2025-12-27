@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+import json
+
 import streamlit as st
 
 from content_marketing_agent.chat import DEFAULT_RESEARCH_MESSAGE, render_chat_detail
+from content_marketing_agent.graph.content_graph import build_content_graph
 from content_marketing_agent.services import chat_service, project_service
 from content_marketing_agent.state import DEFAULT_PROJECT_TITLE, get_current_project, set_active_chat, set_current_project
+
+
+@st.cache_resource
+def _get_content_graph():
+    """Cache the compiled content graph."""
+    return build_content_graph()
 
 
 def _render_header(project_id: str, project_title: str) -> None:
@@ -117,37 +126,91 @@ def render_project() -> None:
         with col_mid:
             st.subheader("Content Creation")
             st.caption("Draft LinkedIn posts/carousels or blog content.")
+
+            linkedin_post_key = f"linkedin_post_{project_id}"
+            linkedin_carousel_key = f"linkedin_carousel_{project_id}"
+            blog_content_key = f"blog_markdown_{project_id}"
+            meta_title_key = f"blog_meta_title_{project_id}"
+            meta_description_key = f"blog_meta_description_{project_id}"
+
+            for key in [linkedin_post_key, linkedin_carousel_key, blog_content_key, meta_title_key, meta_description_key]:
+                st.session_state.setdefault(key, "")
+
             tab_linkedin, tab_blog = st.tabs(["LinkedIn", "Blog"])
 
             with tab_linkedin:
                 st.text_area(
                     "Post (Markdown)",
-                    value="",
-                    key=f"linkedin_post_{project_id}",
+                    value=st.session_state.get(linkedin_post_key, ""),
+                    key=linkedin_post_key,
                     height=220,
                     placeholder="No content yet.",
                 )
                 st.text_area(
                     "Carousel (JSON)",
-                    value="",
-                    key=f"linkedin_carousel_{project_id}",
+                    value=st.session_state.get(linkedin_carousel_key, ""),
+                    key=linkedin_carousel_key,
                     height=200,
                     placeholder='No content yet.',
                 )
 
             with tab_blog:
-                blog_content_key = f"blog_markdown_{project_id}"
                 blog_content = st.session_state.get(blog_content_key, "")
+                st.text_input("Meta title", value=st.session_state.get(meta_title_key, ""), key=meta_title_key, disabled=True)
+                st.text_area(
+                    "Meta description",
+                    value=st.session_state.get(meta_description_key, ""),
+                    key=meta_description_key,
+                    height=80,
+                    disabled=True,
+                )
                 st.markdown("**Blog Content (Markdown)**")
                 st.markdown(blog_content or "_No blog content yet._")
 
-            st.text_area(
-                "Enter your prompt",
-                key=f"content_prompt_{project_id}",
-                placeholder="Enter your prompt...",
-                height=80,
-                max_chars=1000,
-            )
+            with st.form(key=f"content_form_{project_id}", clear_on_submit=False):
+                user_prompt = st.text_area(
+                    "Enter your prompt",
+                    key=f"content_prompt_{project_id}",
+                    placeholder="Enter your prompt...",
+                    height=80,
+                    max_chars=1000,
+                )
+                submitted = st.form_submit_button("Generate content")
+                if submitted:
+                    trimmed = (user_prompt or "").strip()
+                    if not trimmed:
+                        st.warning("Please enter a prompt before generating content.")
+                    else:
+                        with st.spinner("Generating content from research outputs..."):
+                            graph = _get_content_graph()
+                            try:
+                                state = graph.invoke(
+                                    {
+                                        "project_id": project_id,
+                                        "project_title": project.get("title") or DEFAULT_PROJECT_TITLE,
+                                        "prompt": trimmed,
+                                    }
+                                )
+                            except Exception as exc:
+                                st.error(f"Content generation failed: {exc}")
+                                state = {}
+
+                        if isinstance(state, dict):
+                            linkedin_result = state.get("linkedin") or {}
+                            blog_result = state.get("blog") or {}
+
+                            st.session_state[linkedin_post_key] = linkedin_result.get("post", "")
+                            carousel_val = linkedin_result.get("carousel", "")
+                            if isinstance(carousel_val, (dict, list)):
+                                carousel_val = json.dumps(carousel_val, indent=2)
+                            st.session_state[linkedin_carousel_key] = carousel_val or ""
+
+                            st.session_state[blog_content_key] = blog_result.get("blog_markdown", "")
+                            st.session_state[meta_title_key] = blog_result.get("meta_title", "")
+                            st.session_state[meta_description_key] = blog_result.get("meta_description", "")
+
+                            st.success("Content generated. Tabs updated with latest outputs.")
+                            st.rerun()
 
         with col_right:
             st.subheader("Images")

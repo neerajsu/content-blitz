@@ -7,7 +7,7 @@ from typing import Any
 import streamlit as st
 
 from content_marketing_agent.graph.content_graph import build_research_graph, build_title_graph
-from content_marketing_agent.services import chat_service
+from content_marketing_agent.services import chat_service, vector_service
 from content_marketing_agent.state import set_active_chat
 
 DEFAULT_RESEARCH_MESSAGE = "Research something with the chatbot to populate this section."
@@ -187,6 +187,13 @@ def render_chat_detail(selected_chat: dict, project_id: str) -> None:
                     research_markdown = _format_research_markdown(analysis)
                     chat_service.save_research_output(
                         project_id, chat_id, research_markdown, analysis, analysis.get("summary", "")
+                    )
+                    vector_service.upsert_research_output(
+                        project_id=project_id,
+                        chat_id=chat_id,
+                        summary=analysis.get("summary", ""),
+                        keywords=analysis.get("keywords") or (analysis.get("structured", {}) or {}).get("keywords", []),
+                        insights=analysis.get("insights") or (analysis.get("structured", {}) or {}).get("insights", []),
                     )
                     chat_service.add_message(
                         project_id, chat_id, "assistant", "Research output updated. Let me know if you want to tweak anything else."

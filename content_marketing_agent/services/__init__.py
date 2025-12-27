@@ -14,3 +14,4 @@ from content_marketing_agent.services.chat_service import (
     update_chat_title,
 )
 from content_marketing_agent.services.bootstrap import bootstrap_storage
+from . import vector_service as vector_service  # noqa: F401 - re-export for convenience

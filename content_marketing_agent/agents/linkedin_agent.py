@@ -3,47 +3,65 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict
+import logging
+from typing import Any, Dict, Iterable
 
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.documents import Document
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from content_marketing_agent.prompts.linkedin_prompt import LINKEDIN_PROMPT
 
+logger = logging.getLogger(__name__)
+
+
+def _format_context(documents: Iterable[Document]) -> str:
+    docs = list(documents)
+    if not docs:
+        logger.info("LinkedIn agent: no vector documents available; relying on prompt alone.")
+        return "No additional research context available."
+
+    snippets = []
+    for idx, doc in enumerate(docs, 1):
+        meta = doc.metadata or {}
+        chat_id = meta.get("chat_id")
+        header = f"Document {idx}" + (f" (chat {chat_id})" if chat_id else "")
+        snippets.append(f"{header}:\n{doc.page_content}")
+    return "\n\n".join(snippets)
+
 
 def generate_linkedin(
     llm: BaseChatModel,
-    source: str,
     topic: str,
+    sections: list[str],
+    documents: Iterable[Document],
+    user_prompt: str,
     history: str = "",
 ) -> Dict[str, Any]:
-    """
-    Create LinkedIn content from source material.
-
-    Args:
-        llm: Chat model.
-        source: Blog markdown or research summary.
-        topic: Topic for metadata.
-
-    Returns:
-        Structured LinkedIn output.
-    """
+    """Create LinkedIn content from research documents."""
+    context = _format_context(documents)
+    sections = [sec for sec in sections if sec]
     messages = [
         SystemMessage(content="Conversation context:\n" + history) if history else None,
-        SystemMessage(content=LINKEDIN_PROMPT.format(source=source)),
-        HumanMessage(content="Create an engaging LinkedIn post and optional carousel outline."),
+        SystemMessage(
+            content=LINKEDIN_PROMPT.format(
+                topic=topic,
+                sections=sections,
+                context=context,
+                user_prompt=user_prompt,
+            )
+        ),
+        HumanMessage(content="Draft the LinkedIn post and optional carousel."),
     ]
     messages = [m for m in messages if m]
     response = llm.invoke(messages)
     content = response.content
     try:
         if isinstance(content, list):
-            content = "".join(
-                item if isinstance(item, str) else json.dumps(item) for item in content
-            )
+            content = "".join(item if isinstance(item, str) else json.dumps(item) for item in content)
         data = json.loads(content)
     except Exception:
-        print("Exception in linkedin_agent when parsing response from llm")
+        logger.exception("Exception in linkedin_agent when parsing response from llm")
         data = {
             "post": content if isinstance(content, str) else str(content),
             "carousel": "",
