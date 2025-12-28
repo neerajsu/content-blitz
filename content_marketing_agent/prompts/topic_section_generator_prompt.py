@@ -11,8 +11,14 @@ Requirements:
 - Propose a concise topic and 6-8 logical sections.
 - Do NOT invent information beyond the metadata; ground suggestions in the provided content.
 
-Return JSON: {"topic": "...", "sections": ["...", "..."]}.
+Return JSON: with attributes
+- topic (string)
+- sections (list of strings)
 
-RESEARCH METADATA:
+Don't include the "```json" code fence in the response
+
+--------------------------
+RESEARCH METADATA: below
+-----------------------
 {metadata_corpus}
 """

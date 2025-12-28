@@ -13,6 +13,7 @@ Constraints:
 - Keep tone aligned to the brand voice.
 - Deterministic output: minimize randomness and avoid rambling.
 - Return JSON only with keys: blog_markdown, meta_title, meta_description (no code fences).
+- (Important) If there is no data for a section from relevant research snippets, please write under the section. "No research sources available for this section.". Don't hydrate the section with information from your own knowledge 
 
 Topic: {topic}
 Sections: {sections}

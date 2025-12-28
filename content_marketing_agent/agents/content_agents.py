@@ -102,18 +102,14 @@ def topic_and_section_generator_agent(state: ContentState) -> ContentState:
     topic = ""
     sections: List[str] = []
     try:
-        print("Inside here 1")
         llm = get_chat_model(model="gpt-4o-mini")
-        print("Inside here 2")
         response = llm.invoke(
             [
                 SystemMessage(content=TOPIC_SECTION_GENERATOR_PROMPT.format(metadata_corpus=metadata_corpus)),
                 HumanMessage(content="Propose a grounded topic and outline."),
             ]
         )
-        print("Inside here 3")
         content = response.content
-        print("Inside here 4")
         if isinstance(content, list):
             content = "".join(item if isinstance(item, str) else json.dumps(item) for item in content)
         payload = json.loads(content)
@@ -121,7 +117,7 @@ def topic_and_section_generator_agent(state: ContentState) -> ContentState:
         topic = (payload.get("topic") or "").strip()
         sections = [sec.strip() for sec in payload.get("sections") or [] if isinstance(sec, str)]
     except Exception as exc:  # defensive
-        logger.warning("Topic generator failed; using prompt fallback. Error: %s", exc)
+        logger.warning("Topic generator failed; using prompt fallback. Error: %s", repr(exc))
         topic = user_prompt.strip()
         sections = []
 
