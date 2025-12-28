@@ -41,26 +41,40 @@ def _embedding():
 def _pinecone_client() -> Pinecone:
     api_key = os.getenv("PINECONE_API_KEY", "local-dev-key")
     host = os.getenv("PINECONE_HOST")
-    if host:
-        logger.info("Using Pinecone local host: %s", host)
-        return Pinecone(api_key=api_key, host=host)
-    logger.info("Using Pinecone client with default environment")
-    return Pinecone(api_key=api_key)
+    try:
+        if host:
+            logger.info("Using Pinecone local host: %s", host)
+            return Pinecone(api_key=api_key, host=host)
+        logger.info("Using Pinecone client with default environment")
+        return Pinecone(api_key=api_key)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Pinecone client unavailable: %s", exc)
+        return None  # type: ignore[return-value]
 
 
-def _ensure_index(dimension: int) -> None:
-    client = _pinecone_client()
+def _ensure_index(client: Pinecone, dimension: int) -> bool:
+    if client is None:
+        return False
+
     existing = _list_index_names(client)
     if INDEX_NAME in existing:
-        return
-    spec = None
-    if not os.getenv("PINECONE_HOST"):
-        spec = ServerlessSpec(
-            cloud=os.getenv("PINECONE_CLOUD", "aws"),
-            region=os.getenv("PINECONE_REGION", "us-east-1"),
-        )
-    logger.info("Creating Pinecone index '%s' (dim=%s)", INDEX_NAME, dimension)
-    client.create_index(name=INDEX_NAME, dimension=dimension, metric=DEFAULT_METRIC, spec=spec)
+        return True
+
+    try:
+        spec = None
+        host = os.getenv("PINECONE_HOST")
+        if not host:
+            # Hosted/serverless Pinecone requires a spec
+            spec = ServerlessSpec(
+                cloud=os.getenv("PINECONE_CLOUD", "aws"),
+                region=os.getenv("PINECONE_REGION", "us-east-1"),
+            )
+        logger.info("Creating Pinecone index '%s' (dim=%s)", INDEX_NAME, dimension)
+        client.create_index(name=INDEX_NAME, dimension=dimension, metric=DEFAULT_METRIC, spec=spec)
+        return True
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Failed to ensure Pinecone index '%s': %s", INDEX_NAME, exc)
+        return False
 
 
 @lru_cache(maxsize=16)
@@ -69,12 +83,17 @@ def _vector_store(namespace: str) -> PineconeVectorStore | None:
     try:
         embedding = _embedding()
         dimension = get_embedding_dimension(embedding)
-        _ensure_index(dimension)
         client = _pinecone_client()
+        if client is None:
+            logger.info("Vector store unavailable: Pinecone client not initialized.")
+            return None
+
+        if not _ensure_index(client, dimension):
+            logger.info("Vector store unavailable: index creation/listing failed.")
+            return None
+
         host = os.getenv("PINECONE_HOST")
-        if host is None:
-            raise RuntimeError("PINECONE_HOST environment variable is not set")
-        index = client.Index(INDEX_NAME, host=host)
+        index = client.Index(INDEX_NAME, host=host) if host else client.Index(INDEX_NAME)
         return PineconeVectorStore(
             index=index,
             embedding=embedding,

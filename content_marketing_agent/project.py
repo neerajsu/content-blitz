@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 
 import streamlit as st
 
@@ -10,6 +11,8 @@ from content_marketing_agent.chat import DEFAULT_RESEARCH_MESSAGE, render_chat_d
 from content_marketing_agent.graph.content_graph import build_content_graph
 from content_marketing_agent.services import chat_service, project_service
 from content_marketing_agent.state import DEFAULT_PROJECT_TITLE, get_current_project, set_active_chat, set_current_project
+
+logger = logging.getLogger(__name__)
 
 
 @st.cache_resource
@@ -136,37 +139,6 @@ def render_project() -> None:
             for key in [linkedin_post_key, linkedin_carousel_key, blog_content_key, meta_title_key, meta_description_key]:
                 st.session_state.setdefault(key, "")
 
-            tab_linkedin, tab_blog = st.tabs(["LinkedIn", "Blog"])
-
-            with tab_linkedin:
-                st.text_area(
-                    "Post (Markdown)",
-                    value=st.session_state.get(linkedin_post_key, ""),
-                    key=linkedin_post_key,
-                    height=220,
-                    placeholder="No content yet.",
-                )
-                st.text_area(
-                    "Carousel (JSON)",
-                    value=st.session_state.get(linkedin_carousel_key, ""),
-                    key=linkedin_carousel_key,
-                    height=200,
-                    placeholder='No content yet.',
-                )
-
-            with tab_blog:
-                blog_content = st.session_state.get(blog_content_key, "")
-                st.text_input("Meta title", value=st.session_state.get(meta_title_key, ""), key=meta_title_key, disabled=True)
-                st.text_area(
-                    "Meta description",
-                    value=st.session_state.get(meta_description_key, ""),
-                    key=meta_description_key,
-                    height=80,
-                    disabled=True,
-                )
-                st.markdown("**Blog Content (Markdown)**")
-                st.markdown(blog_content or "_No blog content yet._")
-
             with st.form(key=f"content_form_{project_id}", clear_on_submit=False):
                 user_prompt = st.text_area(
                     "Enter your prompt",
@@ -199,6 +171,12 @@ def render_project() -> None:
                             linkedin_result = state.get("linkedin") or {}
                             blog_result = state.get("blog") or {}
 
+                            logger.info(
+                                "Content graph completed. Has blog: %s, has linkedin: %s",
+                                bool(blog_result),
+                                bool(linkedin_result),
+                            )
+
                             st.session_state[linkedin_post_key] = linkedin_result.get("post", "")
                             carousel_val = linkedin_result.get("carousel", "")
                             if isinstance(carousel_val, (dict, list)):
@@ -209,8 +187,41 @@ def render_project() -> None:
                             st.session_state[meta_title_key] = blog_result.get("meta_title", "")
                             st.session_state[meta_description_key] = blog_result.get("meta_description", "")
 
-                            st.success("Content generated. Tabs updated with latest outputs.")
+                            if not (st.session_state[linkedin_post_key] or st.session_state[blog_content_key]):
+                                st.warning("Content graph ran but returned empty results. Check logs for details.")
+                            else:
+                                st.success("Content generated. Tabs updated with latest outputs.")
                             st.rerun()
+                        else:
+                            st.error("Content generation did not return any state. Check logs for details.")
+
+            tab_linkedin, tab_blog = st.tabs(["LinkedIn", "Blog"])
+
+            with tab_linkedin:
+                st.text_area(
+                    "Post (Markdown)",
+                    key=linkedin_post_key,
+                    height=220,
+                    placeholder="No content yet.",
+                )
+                st.text_area(
+                    "Carousel (JSON)",
+                    key=linkedin_carousel_key,
+                    height=200,
+                    placeholder='No content yet.',
+                )
+
+            with tab_blog:
+                blog_content = st.session_state.get(blog_content_key, "")
+                st.text_input("Meta title", key=meta_title_key, disabled=True)
+                st.text_area(
+                    "Meta description",
+                    key=meta_description_key,
+                    height=80,
+                    disabled=True,
+                )
+                st.markdown("**Blog Content (Markdown)**")
+                st.markdown(blog_content or "_No blog content yet._")
 
         with col_right:
             st.subheader("Images")

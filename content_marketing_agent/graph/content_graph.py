@@ -25,6 +25,15 @@ logger = logging.getLogger(__name__)
 
 def _content_router(state: ContentState):
     """Route content graph edges based on collected state."""
+    logger.info(
+        "Router evaluating state: intents=%s topic='%s' sections=%s attempted=%s blog_done=%s li_done=%s",
+        state.get("intent"),
+        state.get("topic"),
+        state.get("sections"),
+        state.get("topic_generation_attempted"),
+        bool(state.get("blog")),
+        bool(state.get("linkedin")),
+    )
     if not state.get("intent"):
         logger.info("Routing: no intent detected yet -> intent_agent")
         return "intent_agent"

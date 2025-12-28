@@ -99,25 +99,29 @@ def topic_and_section_generator_agent(state: ContentState) -> ContentState:
         )
     metadata_corpus = "\n\n".join(lines)
 
-    llm = get_chat_model(model="gpt-4o-mini")
-    response = llm.invoke(
-        [
-            SystemMessage(content=TOPIC_SECTION_GENERATOR_PROMPT.format(metadata_corpus=metadata_corpus)),
-            HumanMessage(content="Propose a grounded topic and outline."),
-        ]
-    )
-
-    content = response.content
     topic = ""
     sections: List[str] = []
     try:
+        print("Inside here 1")
+        llm = get_chat_model(model="gpt-4o-mini")
+        print("Inside here 2")
+        response = llm.invoke(
+            [
+                SystemMessage(content=TOPIC_SECTION_GENERATOR_PROMPT.format(metadata_corpus=metadata_corpus)),
+                HumanMessage(content="Propose a grounded topic and outline."),
+            ]
+        )
+        print("Inside here 3")
+        content = response.content
+        print("Inside here 4")
         if isinstance(content, list):
             content = "".join(item if isinstance(item, str) else json.dumps(item) for item in content)
         payload = json.loads(content)
+        logger.info("Topic and section generator response from llm: ", payload)
         topic = (payload.get("topic") or "").strip()
         sections = [sec.strip() for sec in payload.get("sections") or [] if isinstance(sec, str)]
-    except Exception:
-        logger.info("Topic generator fallback: parse failed; using user prompt.")
+    except Exception as exc:  # defensive
+        logger.warning("Topic generator failed; using prompt fallback. Error: %s", exc)
         topic = user_prompt.strip()
         sections = []
 
@@ -127,7 +131,7 @@ def topic_and_section_generator_agent(state: ContentState) -> ContentState:
 
 def content_orchestrator_agent(state: ContentState) -> ContentState:
     """Central coordinator: fetch vector context and propagate sanitized fields."""
-    topic = (state.get("topic") or "").strip()
+    topic = (state.get("topic") or "").strip() or (state.get("prompt", "").strip()[:80])
     sections = [sec for sec in (state.get("sections") or []) if sec]
     prompt = state.get("prompt", "")
     project_id = state.get("project_id")
@@ -147,31 +151,39 @@ def content_orchestrator_agent(state: ContentState) -> ContentState:
 
 def blog_agent_node(state: ContentState) -> ContentState:
     """Node wrapper around the blog generation agent."""
-    llm = get_chat_model()
-    brand_name = state.get("project_title") or "Brand"
-    blog = generate_blog(
-        llm=llm,
-        topic=state.get("topic", ""),
-        sections=state.get("sections") or [],
-        documents=state.get("vector_documents") or [],
-        brand_name=brand_name,
-        user_prompt=state.get("prompt", ""),
-        history=state.get("history", ""),
-    )
-    logger.info("Blog agent completed for topic '%s'.", state.get("topic", ""))
-    return {"blog": blog}
+    try:
+        llm = get_chat_model()
+        brand_name = state.get("project_title") or "Brand"
+        blog = generate_blog(
+            llm=llm,
+            topic=state.get("topic", ""),
+            sections=state.get("sections") or [],
+            documents=state.get("vector_documents") or [],
+            brand_name=brand_name,
+            user_prompt=state.get("prompt", ""),
+            history=state.get("history", ""),
+        )
+        logger.info("Blog agent completed for topic '%s'.", state.get("topic", ""))
+        return {"blog": blog}
+    except Exception as exc:
+        logger.exception("Blog agent failed: %s", exc)
+        return {"blog": {}}
 
 
 def linkedin_agent_node(state: ContentState) -> ContentState:
     """Node wrapper around the LinkedIn generation agent."""
-    llm = get_chat_model()
-    linkedin = generate_linkedin(
-        llm=llm,
-        topic=state.get("topic", ""),
-        sections=state.get("sections") or [],
-        documents=state.get("vector_documents") or [],
-        user_prompt=state.get("prompt", ""),
-        history=state.get("history", ""),
-    )
-    logger.info("LinkedIn agent completed for topic '%s'.", state.get("topic", ""))
-    return {"linkedin": linkedin}
+    try:
+        llm = get_chat_model()
+        linkedin = generate_linkedin(
+            llm=llm,
+            topic=state.get("topic", ""),
+            sections=state.get("sections") or [],
+            documents=state.get("vector_documents") or [],
+            user_prompt=state.get("prompt", ""),
+            history=state.get("history", ""),
+        )
+        logger.info("LinkedIn agent completed for topic '%s'.", state.get("topic", ""))
+        return {"linkedin": linkedin}
+    except Exception as exc:
+        logger.exception("LinkedIn agent failed: %s", exc)
+        return {"linkedin": {}}

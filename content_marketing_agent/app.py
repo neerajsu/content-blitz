@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+import logging
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -21,6 +22,11 @@ from content_marketing_agent.state import init_state
 
 load_dotenv()
 st.set_page_config(page_title="Agentic Content Marketing Assistant", layout="wide")
+# Simple logging to surface agent decisions in the terminal
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+)
 
 
 def main() -> None:
