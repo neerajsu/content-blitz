@@ -85,17 +85,17 @@ def _render_chat_list(project_id: str, chats: list[dict[str, str]]) -> None:
                     st.rerun()
         with row_cols[1]:
             if editing:
-                if st.button("Cancel", key=f"cancel_{chat['id']}", help="Cancel edit", use_container_width=True):
+                if st.button("✖", key=f"cancel_{chat['id']}", help="Cancel edit", use_container_width=True):
                     st.session_state.chat_edit_id = None
                     st.session_state.pop(edit_key, None)
                     st.rerun()
             else:
-                if st.button("Edit", key=f"edit_{chat['id']}", help="Edit chat title", use_container_width=True):
+                if st.button("✏️", key=f"edit_{chat['id']}", help="Edit chat title", use_container_width=True):
                     st.session_state.chat_edit_id = chat["id"]
                     st.session_state[edit_key] = chat.get("title") or "Untitled chat"
                     st.rerun()
         with row_cols[2]:
-            if st.button("Delete", key=f"del_{chat['id']}", help="Delete chat", use_container_width=True):
+            if st.button("🗑️", key=f"del_{chat['id']}", help="Delete chat", use_container_width=True):
                 chat_service.delete_chat(project_id, chat["id"])
                 if st.session_state.active_chat_id == chat["id"]:
                     set_active_chat(None)
