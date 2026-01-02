@@ -11,6 +11,10 @@ from content_marketing_agent.services import chat_service, vector_service
 from content_marketing_agent.state import set_active_chat
 
 DEFAULT_RESEARCH_MESSAGE = "Research something with the chatbot to populate this section."
+CHAT_CONTAINER_HEIGHT = 400
+PROMPT_AREA_HEIGHT = 140
+FORM_PADDING_HEIGHT = 80  # Accounts for label, button, and spacing around the prompt area
+RESEARCH_CONTAINER_HEIGHT = CHAT_CONTAINER_HEIGHT + PROMPT_AREA_HEIGHT + FORM_PADDING_HEIGHT
 
 
 @st.cache_resource
@@ -126,7 +130,7 @@ def render_chat_detail(selected_chat: dict, project_id: str) -> None:
     chat_col, research_col = st.columns([1.1, 1.3])
     with chat_col:
         st.subheader("Chat")
-        chat_container = st.container(height=400, border=True)
+        chat_container = st.container(height=CHAT_CONTAINER_HEIGHT, border=True)
         with chat_container:
             for message in messages:
                 role = message.get("role", "").lower()
@@ -141,7 +145,7 @@ def render_chat_detail(selected_chat: dict, project_id: str) -> None:
                 "Enter your prompt",
                 key=input_key,
                 placeholder="Type to continue the chat",
-                height=140,
+                height=PROMPT_AREA_HEIGHT,
                 max_chars=None,
             )
             submitted = st.form_submit_button("Submit")
@@ -212,6 +216,6 @@ def render_chat_detail(selected_chat: dict, project_id: str) -> None:
                 chat_service.save_research_output(project_id, chat_id, DEFAULT_RESEARCH_MESSAGE, {}, DEFAULT_RESEARCH_MESSAGE)
                 research_markdown = DEFAULT_RESEARCH_MESSAGE
 
-        output_box = st.container(height=480, border=True)
+        output_box = st.container(height=RESEARCH_CONTAINER_HEIGHT, border=True)
         with output_box:
             st.markdown(research_markdown)
