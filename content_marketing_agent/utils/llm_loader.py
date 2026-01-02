@@ -71,7 +71,13 @@ def get_chat_model(provider: str | None = None, model: Optional[str] = None) -> 
     if resolved_provider in {"gemini", "google"}:
         api_key = os.getenv("GOOGLE_API_KEY")
         if api_key and ChatGoogleGenerativeAI:
-            return ChatGoogleGenerativeAI(model=model or os.getenv("GEMINI_MODEL", "gemini-1.5-flash"), temperature=temperature)
+            configured_model = model or os.getenv("GEMINI_MODEL", "gemini-1.5-flash-002")
+            # Normalize older model aliases to current API names
+            if configured_model == "gemini-1.5-flash":
+                configured_model = "gemini-1.5-flash-002"
+            elif configured_model == "gemini-1.5-pro":
+                configured_model = "gemini-1.5-pro-002"
+            return ChatGoogleGenerativeAI(model=configured_model, temperature=temperature)
         return StubChatModel()
 
     return StubChatModel()

@@ -18,4 +18,5 @@ class ContentState(TypedDict, total=False):
     vector_documents: list[Any]
     blog: Dict[str, Any]
     linkedin: Dict[str, Any]
+    images: List[Dict[str, Any]]
     topic_generation_attempted: bool

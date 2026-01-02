@@ -11,6 +11,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from content_marketing_agent.prompts.blog_prompt import BLOG_PROMPT
+from content_marketing_agent.utils.llm_loader import get_chat_model
 
 logger = logging.getLogger(__name__)
 
@@ -73,3 +74,24 @@ def generate_blog(
         }
 
     return data
+
+
+def blog_agent_node(state: dict[str, Any]) -> dict[str, Any]:
+    """Node wrapper around the blog generation agent."""
+    try:
+        llm = get_chat_model()
+        brand_name = state.get("project_title") or "Brand"
+        blog = generate_blog(
+            llm=llm,
+            topic=state.get("topic", ""),
+            sections=state.get("sections") or [],
+            documents=state.get("vector_documents") or [],
+            brand_name=brand_name,
+            user_prompt=state.get("prompt", ""),
+            history=state.get("history", ""),
+        )
+        logger.info("Blog agent completed for topic '%s'.", state.get("topic", ""))
+        return {"blog": blog}
+    except Exception as exc:
+        logger.exception("Blog agent failed: %s", exc)
+        return {"blog": {}}

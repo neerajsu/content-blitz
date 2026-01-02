@@ -7,14 +7,13 @@ from typing import Any, Dict, List
 
 from langgraph.graph import END, StateGraph
 
-from content_marketing_agent.agents.content_agents import (
-    blog_agent_node,
-    content_orchestrator_agent,
-    intent_agent,
-    linkedin_agent_node,
-    topic_and_section_generator_agent,
-    topic_and_sections_agent,
-)
+from content_marketing_agent.agents.blog_agent import blog_agent_node
+from content_marketing_agent.agents.content_orchestrator_agent import content_orchestrator_agent
+from content_marketing_agent.agents.image_agent import image_agent_node
+from content_marketing_agent.agents.intent_agent import intent_agent
+from content_marketing_agent.agents.linkedin_agent import linkedin_agent_node
+from content_marketing_agent.agents.topic_and_section_generator_agent import topic_and_section_generator_agent
+from content_marketing_agent.agents.topic_and_sections_agent import topic_and_sections_agent
 from content_marketing_agent.agents.guard_agent import guard_relevance
 from content_marketing_agent.agents.research_agent import ResearchState, research_step
 from content_marketing_agent.agents.title_agent import TitleState, generate_title
@@ -49,6 +48,9 @@ def _content_router(state: ContentState):
     if "blog" in intents and not state.get("blog"):
         logger.info("Routing: blog intent detected -> blog_agent")
         return "blog_agent"
+    if state.get("blog") and not state.get("images"):
+        logger.info("Routing: blog completed -> image_agent")
+        return "image_agent"
     if "linkedin" in intents and not state.get("linkedin"):
         logger.info("Routing: LinkedIn intent detected -> linkedin_agent")
         return "linkedin_agent"
@@ -89,6 +91,7 @@ def build_content_graph():
     graph.add_node("topic_and_sections_agent", topic_and_sections_agent)
     graph.add_node("topic_and_section_generator_agent", topic_and_section_generator_agent)
     graph.add_node("blog_agent", blog_agent_node)
+    graph.add_node("image_agent", image_agent_node)
     graph.add_node("linkedin_agent", linkedin_agent_node)
 
     graph.set_entry_point("content_orchestrator_agent")
@@ -96,6 +99,7 @@ def build_content_graph():
     graph.add_edge("topic_and_sections_agent", "content_orchestrator_agent")
     graph.add_edge("topic_and_section_generator_agent", "content_orchestrator_agent")
     graph.add_edge("blog_agent", "content_orchestrator_agent")
+    graph.add_edge("image_agent", "content_orchestrator_agent")
     graph.add_edge("linkedin_agent", "content_orchestrator_agent")
 
     graph.add_conditional_edges(
@@ -105,6 +109,7 @@ def build_content_graph():
             "intent_agent": "intent_agent",
             "topic_and_section_generator_agent": "topic_and_section_generator_agent",
             "blog_agent": "blog_agent",
+            "image_agent": "image_agent",
             "linkedin_agent": "linkedin_agent",
             END: END,
         },

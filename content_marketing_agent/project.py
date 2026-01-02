@@ -7,6 +7,7 @@ import logging
 
 import streamlit as st
 
+from content_marketing_agent.agents.image_agent import PLACEHOLDER_IMAGE
 from content_marketing_agent.chat import DEFAULT_RESEARCH_MESSAGE, render_chat_detail
 from content_marketing_agent.graph.content_graph import build_content_graph
 from content_marketing_agent.services import chat_service, project_service
@@ -135,9 +136,11 @@ def render_project() -> None:
             blog_content_key = f"blog_markdown_{project_id}"
             meta_title_key = f"blog_meta_title_{project_id}"
             meta_description_key = f"blog_meta_description_{project_id}"
+            images_key = f"images_{project_id}"
 
             for key in [linkedin_post_key, linkedin_carousel_key, blog_content_key, meta_title_key, meta_description_key]:
                 st.session_state.setdefault(key, "")
+            st.session_state.setdefault(images_key, [])
 
             with st.form(key=f"content_form_{project_id}", clear_on_submit=False):
                 user_prompt = st.text_area(
@@ -170,11 +173,13 @@ def render_project() -> None:
                         if isinstance(state, dict):
                             linkedin_result = state.get("linkedin") or {}
                             blog_result = state.get("blog") or {}
+                            image_results = state.get("images") or []
 
                             logger.info(
-                                "Content graph completed. Has blog: %s, has linkedin: %s",
+                                "Content graph completed. Has blog: %s, has linkedin: %s, images: %s",
                                 bool(blog_result),
                                 bool(linkedin_result),
+                                len(image_results),
                             )
 
                             st.session_state[linkedin_post_key] = linkedin_result.get("post", "")
@@ -186,6 +191,7 @@ def render_project() -> None:
                             st.session_state[blog_content_key] = blog_result.get("blog_markdown", "")
                             st.session_state[meta_title_key] = blog_result.get("meta_title", "")
                             st.session_state[meta_description_key] = blog_result.get("meta_description", "")
+                            st.session_state[images_key] = image_results
 
                             if not (st.session_state[linkedin_post_key] or st.session_state[blog_content_key]):
                                 st.warning("Content graph ran but returned empty results. Check logs for details.")
@@ -225,8 +231,32 @@ def render_project() -> None:
 
         with col_right:
             st.subheader("Images")
-            st.caption("Image generation workflows will appear here.")
-            st.info("No images yet. Generate prompts from your research to see them here.")
+            st.caption("Images generated after blog creation.")
+            images = st.session_state.get(images_key, [])
+            if not images:
+                st.info("No images yet. Generate blog content to create section visuals.")
+            else:
+                for idx, img in enumerate(images, 1):
+                    container = st.container(border=True)
+                    with container:
+                        image_url = img.get("image_url") or PLACEHOLDER_IMAGE
+                        caption = img.get("caption") or f"Image {idx}"
+                        alt_text = img.get("alt_text") or ""
+                        prompt = img.get("prompt") or ""
+                        section = img.get("section") or "General"
+                        html_img = f"""
+                        <div style="width:100%; max-height:420px; overflow:hidden; border-radius:6px; border:1px solid rgba(0,0,0,0.05);">
+                            <img src="{image_url}" alt="{alt_text}" style="width:100%; height:auto; display:block; object-fit:contain;" />
+                        </div>
+                        """
+                        container.markdown(html_img, unsafe_allow_html=True)
+                        container.caption(caption)
+                        container.markdown(f"**Section:** {section}")
+                        if prompt:
+                            container.markdown(f"**Prompt:** {prompt}")
+                        if alt_text:
+                            container.caption(f"Alt: {alt_text}")
+                    st.divider()
     else:
         selected_chat = chat_service.get_chat(selected_chat_id)
         if not selected_chat or selected_chat.get("project_id") != project_id:

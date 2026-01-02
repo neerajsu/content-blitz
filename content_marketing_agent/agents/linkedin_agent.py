@@ -11,6 +11,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from content_marketing_agent.prompts.linkedin_prompt import LINKEDIN_PROMPT
+from content_marketing_agent.utils.llm_loader import get_chat_model
 
 logger = logging.getLogger(__name__)
 
@@ -67,3 +68,22 @@ def generate_linkedin(
             "carousel": "",
         }
     return data
+
+
+def linkedin_agent_node(state: dict[str, Any]) -> dict[str, Any]:
+    """Node wrapper around the LinkedIn generation agent."""
+    try:
+        llm = get_chat_model()
+        linkedin = generate_linkedin(
+            llm=llm,
+            topic=state.get("topic", ""),
+            sections=state.get("sections") or [],
+            documents=state.get("vector_documents") or [],
+            user_prompt=state.get("prompt", ""),
+            history=state.get("history", ""),
+        )
+        logger.info("LinkedIn agent completed for topic '%s'.", state.get("topic", ""))
+        return {"linkedin": linkedin}
+    except Exception as exc:
+        logger.exception("LinkedIn agent failed: %s", exc)
+        return {"linkedin": {}}
