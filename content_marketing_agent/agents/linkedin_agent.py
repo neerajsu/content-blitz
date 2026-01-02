@@ -10,6 +10,7 @@ from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.chat_models import BaseChatModel
 
+from content_marketing_agent.graph.content_state import ContentState
 from content_marketing_agent.prompts.linkedin_prompt import LINKEDIN_PROMPT
 from content_marketing_agent.utils.llm_loader import get_chat_model
 
@@ -70,7 +71,7 @@ def generate_linkedin(
     return data
 
 
-def linkedin_agent_node(state: dict[str, Any]) -> dict[str, Any]:
+def linkedin_agent_node(state: ContentState) -> ContentState:
     """Node wrapper around the LinkedIn generation agent."""
     try:
         llm = get_chat_model()

@@ -11,6 +11,7 @@ from typing import Any, Dict, List
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.language_models.chat_models import BaseChatModel
 
+from content_marketing_agent.graph.content_state import ContentState
 from content_marketing_agent.prompts.image_prompt import BLOG_IMAGE_PROMPT
 
 logger = logging.getLogger(__name__)
@@ -139,7 +140,7 @@ def generate_images_for_blog(
     return images
 
 
-def image_agent_node(state: dict[str, Any]) -> dict[str, Any]:
+def image_agent_node(state: ContentState) -> ContentState:
     """Generate image assets based on the produced blog content."""
     blog = state.get("blog") or {}
     if not blog:

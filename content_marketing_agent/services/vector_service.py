@@ -149,3 +149,18 @@ def query_project_documents(project_id: str, query: str, k: int = 8) -> list[Doc
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning("Vector retrieval failed for namespace %s: %s", namespace, exc)
         return []
+
+
+def delete_chat_vectors(project_id: str, chat_id: str) -> None:
+    """Remove vectors for a chat from the project's namespace."""
+    namespace = str(project_id)
+    store = _vector_store(namespace)
+    if not store:
+        logger.info("Skipping vector delete: vector store unavailable for namespace %s", namespace)
+        return
+
+    try:
+        store.delete(ids=[chat_id])
+        logger.info("Deleted vector entry for chat_id=%s in namespace=%s", chat_id, namespace)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Vector delete failed for chat_id=%s namespace=%s: %s", chat_id, namespace, exc)

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from content_marketing_agent.data_access import chat_repository, message_repository, research_repository
+from content_marketing_agent.services import vector_service
 
 
 def list_chats(project_id: str) -> list[dict[str, Any]]:
@@ -33,6 +34,7 @@ def delete_chat(project_id: str, chat_id: str) -> None:
     chat_repository.delete_chat(chat_id)
     message_repository.delete_messages_for_chat(chat_id)
     research_repository.delete_research_output(chat_id)
+    vector_service.delete_chat_vectors(project_id, chat_id)
 
 
 def update_chat_title(chat_id: str, title: str, generated: bool = False) -> None:

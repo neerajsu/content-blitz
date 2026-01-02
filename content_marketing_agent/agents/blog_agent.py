@@ -10,6 +10,7 @@ from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.chat_models import BaseChatModel
 
+from content_marketing_agent.graph.content_state import ContentState
 from content_marketing_agent.prompts.blog_prompt import BLOG_PROMPT
 from content_marketing_agent.utils.llm_loader import get_chat_model
 
@@ -76,7 +77,7 @@ def generate_blog(
     return data
 
 
-def blog_agent_node(state: dict[str, Any]) -> dict[str, Any]:
+def blog_agent_node(state: ContentState) -> ContentState:
     """Node wrapper around the blog generation agent."""
     try:
         llm = get_chat_model()
