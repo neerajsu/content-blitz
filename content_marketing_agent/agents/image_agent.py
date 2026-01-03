@@ -109,9 +109,7 @@ def generate_images_for_blog(
         HumanMessage(content="Return the JSON now."),
     ]
     messages = [m for m in messages if m]
-    logger.info("\n\n\n Neeraj inside here 1\n\n")
     response = llm.invoke(messages)
-    logger.info("\n\n\n Neeraj inside here 2")
     content = response.content
     images = _parse_images_response(content)
 

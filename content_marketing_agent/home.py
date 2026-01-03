@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from content_marketing_agent.services import project_service
+from content_marketing_agent.services import brand_voice_service, project_service
 from content_marketing_agent.state import DEFAULT_PROJECT_TITLE, set_current_project
 
 
@@ -34,6 +34,23 @@ def render_home() -> None:
     """Render the Home screen with a grid of projects."""
     st.title("Home")
     st.caption("Jump into an existing project or start a new one.")
+
+    brand_voice = st.session_state.get("brand_voice") or brand_voice_service.get_brand_voice()
+    with st.container(border=True):
+        st.subheader("Brand Voice")
+        with st.form("brand_voice_form", clear_on_submit=False):
+            brand = st.text_input("Brand", value=brand_voice.get("brand", ""), max_chars=120)
+            tone = st.text_input("Tone", value=brand_voice.get("tone", ""), max_chars=200)
+            audience = st.text_input("Audience", value=brand_voice.get("audience", ""), max_chars=200)
+            guidelines = st.text_area(
+                "Writing Guidelines", value=brand_voice.get("guidelines", ""), height=100, max_chars=800
+            )
+            saved = st.form_submit_button("Save brand voice", use_container_width=True)
+
+        if saved:
+            saved_profile = brand_voice_service.save_brand_voice(brand, tone, audience, guidelines)
+            st.session_state["brand_voice"] = saved_profile
+            st.success("Brand voice saved.")
 
     projects = project_service.list_projects()
     tiles: list[dict] = [{"type": "create"}] + [{"type": "project", "data": proj} for proj in projects]

@@ -13,6 +13,7 @@ class ContentState(TypedDict, total=False):
     prompt: str
     history: str
     intent: List[str]
+    brand_voice: Dict[str, Any]
     topic: str
     sections: List[str]
     vector_documents: list[Any]

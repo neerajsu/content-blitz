@@ -27,6 +27,8 @@ def guard_relevance(state: GuardState) -> GuardState:
         return {"allowed": True, "reason": ""}
 
     guard_prompt = GUARD_PROMPT.format(research_output=research_output, prompt=prompt)
+    print("\n\n Guard prompt below \n")
+    print(guard_prompt);
     llm = get_chat_model(model="gpt-4o-mini")
     response = llm.invoke([HumanMessage(content=guard_prompt)])
     content = getattr(response, "content", "")

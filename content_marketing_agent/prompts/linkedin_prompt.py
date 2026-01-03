@@ -14,6 +14,7 @@ Requirements:
 
 Topic: {topic}
 Sections: {sections}
+Brand voice guidance: {brand_voice}
 User prompt: {user_prompt}
 
 --------------------------------

@@ -32,6 +32,28 @@ def _format_context(documents: Iterable[Document]) -> str:
     return "\n\n".join(snippets)
 
 
+def _build_brand_voice(brand_voice: Dict[str, Any], fallback_brand: str) -> str:
+    """Compose brand voice guidance string from stored profile."""
+    brand = (brand_voice.get("brand") or fallback_brand or "Brand").strip()
+    tone = (brand_voice.get("tone") or "").strip()
+    audience = (brand_voice.get("audience") or "").strip()
+    guidelines = (brand_voice.get("guidelines") or "").strip()
+
+    parts = []
+    if brand:
+        parts.append(f"Brand: {brand}.")
+    if tone:
+        parts.append(f"Tone: {tone}.")
+    if audience:
+        parts.append(f"Audience: {audience}.")
+    if guidelines:
+        parts.append(f"Writing guidelines: {guidelines}.")
+
+    if not parts:
+        return f"Maintain a consistent professional yet friendly tone for {fallback_brand or 'the brand'}. Prioritize clarity and value."
+    return " ".join(parts)
+
+
 def generate_blog(
     llm: BaseChatModel,
     topic: str,
@@ -40,10 +62,11 @@ def generate_blog(
     brand_name: str,
     user_prompt: str,
     history: str = "",
+    brand_voice: str = "",
 ) -> Dict[str, Any]:
     """Generate a blog post using vector-grounded context."""
 
-    brand_voice = f"Maintain a consistent professional yet friendly tone for {brand_name}. Prioritize clarity and value."
+    brand_voice = brand_voice or f"Maintain a consistent professional yet friendly tone for {brand_name}. Prioritize clarity and value."
     context = _format_context(documents)
     sections = [sec for sec in sections if sec]
     messages = [
@@ -81,7 +104,9 @@ def blog_agent_node(state: ContentState) -> ContentState:
     """Node wrapper around the blog generation agent."""
     try:
         llm = get_chat_model()
-        brand_name = state.get("project_title") or "Brand"
+        brand_profile = state.get("brand_voice") or {}
+        brand_name = brand_profile.get("brand") or state.get("project_title") or "Brand"
+        brand_voice = _build_brand_voice(brand_profile, brand_name)
         blog = generate_blog(
             llm=llm,
             topic=state.get("topic", ""),
@@ -90,6 +115,7 @@ def blog_agent_node(state: ContentState) -> ContentState:
             brand_name=brand_name,
             user_prompt=state.get("prompt", ""),
             history=state.get("history", ""),
+            brand_voice=brand_voice,
         )
         logger.info("Blog agent completed for topic '%s'.", state.get("topic", ""))
         return {"blog": blog}

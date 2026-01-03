@@ -10,7 +10,7 @@ import streamlit as st
 from content_marketing_agent.agents.image_agent import PLACEHOLDER_IMAGE
 from content_marketing_agent.chat import DEFAULT_RESEARCH_MESSAGE, render_chat_detail
 from content_marketing_agent.graph.content_graph import build_content_graph
-from content_marketing_agent.services import chat_service, project_service, linkedin_service
+from content_marketing_agent.services import chat_service, project_service, linkedin_service, brand_voice_service
 from content_marketing_agent.state import DEFAULT_PROJECT_TITLE, get_current_project, set_active_chat, set_current_project
 
 logger = logging.getLogger(__name__)
@@ -156,6 +156,7 @@ def render_project() -> None:
                     if not trimmed:
                         st.warning("Please enter a prompt before generating content.")
                     else:
+                        brand_voice = st.session_state.get("brand_voice") or brand_voice_service.get_brand_voice()
                         with st.spinner("Generating content from research outputs..."):
                             graph = _get_content_graph()
                             try:
@@ -164,6 +165,7 @@ def render_project() -> None:
                                         "project_id": project_id,
                                         "project_title": project.get("title") or DEFAULT_PROJECT_TITLE,
                                         "prompt": trimmed,
+                                        "brand_voice": brand_voice,
                                     }
                                 )
                             except Exception as exc:
