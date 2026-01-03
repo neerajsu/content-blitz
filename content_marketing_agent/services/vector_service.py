@@ -143,7 +143,8 @@ def query_project_documents(project_id: str, query: str, k: int = 8) -> list[Doc
         return []
 
     try:
-        docs = store.similarity_search(query, k=k)
+        retriever = store.as_retriever(search_type="similarity", search_kwargs={"k": k})
+        docs = retriever.invoke(query)
         logger.info("Retrieved %s vector documents for namespace=%s", len(docs), namespace)
         return docs
     except Exception as exc:  # pragma: no cover - defensive
