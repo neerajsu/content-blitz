@@ -10,7 +10,7 @@ import streamlit as st
 from content_marketing_agent.agents.image_agent import PLACEHOLDER_IMAGE
 from content_marketing_agent.chat import DEFAULT_RESEARCH_MESSAGE, render_chat_detail
 from content_marketing_agent.graph.content_graph import build_content_graph
-from content_marketing_agent.services import chat_service, project_service
+from content_marketing_agent.services import chat_service, project_service, linkedin_service
 from content_marketing_agent.state import DEFAULT_PROJECT_TITLE, get_current_project, set_active_chat, set_current_project
 
 logger = logging.getLogger(__name__)
@@ -204,12 +204,23 @@ def render_project() -> None:
             tab_linkedin, tab_blog = st.tabs(["LinkedIn", "Blog"])
 
             with tab_linkedin:
-                st.text_area(
+                post_content = st.text_area(
                     "Post (Markdown)",
                     key=linkedin_post_key,
                     height=220,
                     placeholder="No content yet.",
                 )
+
+                if (post_content or "").strip():
+                    if st.button("Publish", key=f"publish_linkedin_{project_id}", use_container_width=True):
+                        try:
+                            with st.spinner("Publishing to LinkedIn..."):
+                                linkedin_service.publish_linkedin_post(post_content)
+                            st.success("LinkedIn post published.")
+                        except Exception as exc:  # pragma: no cover - UI/network surface
+                            logger.exception("LinkedIn publish failed: %s", exc)
+                            st.error(f"LinkedIn publish failed: {exc}")
+
                 st.text_area(
                     "Carousel (JSON)",
                     key=linkedin_carousel_key,

@@ -15,3 +15,5 @@ from content_marketing_agent.services.chat_service import (
 )
 from content_marketing_agent.services.bootstrap import bootstrap_storage
 from . import vector_service as vector_service  # noqa: F401 - re-export for convenience
+from . import linkedin_service as linkedin_service  # noqa: F401 - re-export for convenience
+
