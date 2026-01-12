@@ -3,6 +3,7 @@
 Capstone-grade content marketing assistant built with LangChain and Streamlit. Generates research summaries, SEO blogs, LinkedIn posts, and images while keeping brand voice consistent.
 
 ## Agents
+
 - `intent_agent`: classify whether the user wants a blog, LinkedIn post, or both.
 - `topic_and_sections_agent`: extract topic and section outline directly from the prompt.
 - `topic_and_section_generator_agent`: generate a topic/outline from stored research metadata.
@@ -15,6 +16,7 @@ Capstone-grade content marketing assistant built with LangChain and Streamlit. G
 - `title_agent`: generate concise titles from research summaries.
 
 ## Architecture Diagram
+
 ```
 User
   |
@@ -35,6 +37,7 @@ Content Graph (routing + state)
 ```
 
 ## Setup
+
 1. **Install dependencies**
    ```bash
    cd content_marketing_agent
@@ -50,6 +53,7 @@ Content Graph (routing + state)
    - `OPENAI_API_KEY` for LLM + image generation.
    - `PERPLEXITY_API_KEY` for research.
    - `PINECONE_API_KEY` for vector search.
+   - `GOOGLE_API_KEY` for generating image prompts.
    - `MONGO_URI` / `MONGO_DB_NAME` for persistence (local dev defaults are fine).
 4. **Provision Pinecone**
    - Create a Pinecone project and get the API key.
@@ -65,5 +69,6 @@ Content Graph (routing + state)
    ```
 
 ## Notes
+
 - Switch providers with `LLM_PROVIDER=openai|anthropic|gemini`.
 - Pinecone indexes are created automatically if missing and credentials are valid.
