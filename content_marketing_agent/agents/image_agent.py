@@ -8,6 +8,7 @@ import logging
 import os
 from typing import Any, Dict, List
 
+import requests
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.language_models.chat_models import BaseChatModel
 
@@ -19,6 +20,9 @@ PLACEHOLDER_IMAGE = (
     "data:image/png;base64,"
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9pCm1N0AAAAASUVORK5CYII="
 )
+OPENAI_IMAGE_MODEL = os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-1")
+OPENAI_IMAGE_SIZE = os.getenv("OPENAI_IMAGE_SIZE", "1024x1024")
+OPENAI_IMAGE_URL = "https://api.openai.com/v1/images/generations"
 
 
 def _parse_images_response(content: Any) -> List[Dict[str, Any]]:
@@ -33,50 +37,55 @@ def _parse_images_response(content: Any) -> List[Dict[str, Any]]:
         return []
 
 
-def _build_genai_client():
-    """Return a configured Google GenAI client if available."""
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        logger.info("Image agent: GOOGLE_API_KEY not set; falling back to placeholders.")
-        return None
-    try:
-        from google import genai
-    except Exception as exc:
-        logger.warning("Image agent: google-genai package unavailable (%s); using placeholders.", exc)
-        return None
-    try:
-        return genai.Client(api_key=api_key)
-    except Exception as exc:
-        logger.warning("Image agent: failed to init genai client (%s); using placeholders.", exc)
-        return None
-
-
-def _generate_image_data_uri(client, prompt: str) -> str:
+def _generate_image_data_uri(prompt: str) -> str:
     """
-    Generate an image via Google GenAI and return a data URI.
+    Generate an image via the OpenAI Images API and return a data URI.
 
     Falls back to a placeholder if generation fails.
     """
-    if not client:
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        logger.info("Image agent: OPENAI_API_KEY not set; using placeholder image.")
         return PLACEHOLDER_IMAGE
 
-    model_name = os.getenv("GEMINI_IMAGE_MODEL", "imagen-4.0-generate-001")
-    try: 
-        result = client.models.generate_images(model=model_name, prompt=prompt)
-        # result.generated_images is the documented field; fall back to .data for older versions
-        images = getattr(result, "generated_images", None) or getattr(result, "data", None) or []
-        for img in images:
-            raw = getattr(img, "image", None) or getattr(img, "image_bytes", None) or getattr(img, "bytes", None)
-            if raw:
-                if isinstance(raw, dict) and "data" in raw:
-                    raw_bytes = raw.get("data")
-                else:
-                    raw_bytes = raw if isinstance(raw, (bytes, bytearray)) else getattr(raw, "data", b"")
-                if raw_bytes:
-                    b64 = base64.b64encode(raw_bytes).decode("utf-8")
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": OPENAI_IMAGE_MODEL,
+        "prompt": prompt,
+        "size": OPENAI_IMAGE_SIZE,
+    }
+
+    try:
+        response = requests.post(OPENAI_IMAGE_URL, headers=headers, json=payload, timeout=60)
+        response.raise_for_status()
+        payload = response.json()
+        data = payload.get("data") if isinstance(payload, dict) else None
+        if isinstance(data, list) and data:
+            first = data[0]
+            if isinstance(first, dict):
+                b64 = first.get("b64_json")
+                if b64:
                     return f"data:image/png;base64,{b64}"
+                url = first.get("url")
+                if url:
+                    return url
+        logger.warning("OpenAI image response missing b64 data for prompt '%s'.", prompt)
+    except (ValueError, TypeError) as exc:
+        logger.warning("Failed to parse OpenAI image response for prompt '%s': %s", prompt, exc)
+    except requests.HTTPError as exc:
+        logger.warning(
+            "OpenAI image generation failed for prompt '%s' (status=%s): %s",
+            prompt,
+            getattr(exc.response, "status_code", "unknown"),
+            getattr(exc.response, "text", exc),
+        )
+    except requests.RequestException as exc:
+        logger.warning("OpenAI image generation request error for prompt '%s': %s", prompt, exc)
     except Exception as exc:
-        logger.warning("Image generation failed for prompt '%s': %s", prompt, exc)
+        logger.warning("Unexpected error during OpenAI image generation for prompt '%s': %s", prompt, exc)
 
     return PLACEHOLDER_IMAGE
 
@@ -113,9 +122,6 @@ def generate_images_for_blog(
     content = response.content
     images = _parse_images_response(content)
 
-    # Wire in actual image generation when a Google GenAI client is available
-    genai_client = _build_genai_client()
-
     if not images:
         # Fallback: create one prompt per section
         images = [
@@ -130,7 +136,7 @@ def generate_images_for_blog(
 
     for img in images:
         prompt_text = img.get("prompt") or "Illustration inspired by the blog content."
-        img["image_url"] = img.get("image_url") or _generate_image_data_uri(genai_client, prompt_text)
+        img["image_url"] = img.get("image_url") or _generate_image_data_uri(prompt_text)
         img["caption"] = img.get("caption") or img.get("prompt") or "Generated image"
         img["alt_text"] = img.get("alt_text") or "Generated illustration"
         img["section"] = img.get("section") or "General"

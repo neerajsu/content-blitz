@@ -21,4 +21,5 @@ Return JSON with key 'images' as a list of objects, each containing:
 - prompt: a concrete text-to-image prompt ready for an image model
 - caption: short caption for readers
 - alt_text: concise accessibility text
+
 Do not include code fences."""
